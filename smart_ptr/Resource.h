@@ -26,4 +26,20 @@ public:
     std::string getname() const  override;
 };
 
+inline auto MemoryResourceDeleter = [](void* ptr) {
+	::operator delete(ptr);
+};
+
+using MemoryDeleter = decltype(MemoryResourceDeleter); // decltype retrieves lambatype at compile time
+
+class MemoryResource : public Resource {
+	public:
+		int bytes;
+		std::unique_ptr<void,MemoryDeleter> upm; // Store a unqiue pointer pointing at result of mem allocation via ::operator new
+		MemoryResource(const int& bytes);
+
+		void acquire() override;
+		void release() override;
+};
+
 #endif

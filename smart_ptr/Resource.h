@@ -1,9 +1,12 @@
 #ifndef RESOURCE_H
 #define RESOURCE_H
 
+#include <cstddef>
+#include <new>
 #include <string>
 #include <memory>
 #include <fstream>
+#include <vector>
 
 class Resource {
 public:
@@ -23,23 +26,45 @@ public:
 
     void acquire() override;
     void release() override;
+    std::fstream& getStream();
     std::string getname() const  override;
 };
 
-inline auto MemoryResourceDeleter = [](void* ptr) {
-	::operator delete(ptr);
+struct MemoryDeleter {
+    std::size_t alignment;
+
+    void operator()(void* ptr) const noexcept {
+        ::operator delete(ptr, std::align_val_t{alignment}); //Needed to keep alignment in mind
+    }
 };
 
-using MemoryDeleter = decltype(MemoryResourceDeleter); // decltype retrieves lambatype at compile time
-
 class MemoryResource : public Resource {
-	public:
-		int bytes;
+    public:
 		std::unique_ptr<void,MemoryDeleter> upm; // Store a unqiue pointer pointing at result of mem allocation via ::operator new
-		MemoryResource(const int& bytes);
+		MemoryResource(std::size_t, std::size_t);
 
 		void acquire() override;
 		void release() override;
+        std::string getname() const override;
+        void* getMemBlock();
+    private:
+        std::size_t alignment;
+        std::size_t bytes;
 };
+
+
+class ResourceManager {
+    public:
+        ResourceManager();
+        void AddResource(std::string& path);
+        void AddResource(std::size_t, std::size_t);
+        void acquireAll();
+        void releaseAll();
+        Resource& getResource(std::size_t);
+    private:
+        std::vector<std::unique_ptr<Resource>> Resources;
+
+};
+
 
 #endif
